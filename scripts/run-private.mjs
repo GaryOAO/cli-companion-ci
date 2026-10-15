@@ -16,7 +16,7 @@ function execute(command, args, options = {}) {
   return child.stdout.trim();
 }
 try {
-  if (process.platform !== 'darwin' || `darwin-${process.arch}` !== env.EXPECTED_TARGET || !/^[a-f0-9]{40}$/.test(env.SOURCE_SHA ?? '') || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.SOURCE_REPOSITORY ?? '')) throw new Error();
+  if (!['darwin', 'win32'].includes(process.platform) || `${process.platform}-${process.arch}` !== env.EXPECTED_TARGET || !/^[a-f0-9]{40}$/.test(env.SOURCE_SHA ?? '') || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.SOURCE_REPOSITORY ?? '')) throw new Error();
   if (!env.SOURCE_DEPLOY_KEY || !env.RUNNER_TEMP || !path.isAbsolute(env.RUNNER_TEMP)) throw new Error();
   root = mkdtempSync(path.join(env.RUNNER_TEMP, 'private-ci-'));
   chmodSync(root, 0o700);
@@ -28,8 +28,8 @@ try {
   // Official GitHub ED25519 host key; never accept a runtime keyscan.
   const known = path.join(root, 'known-hosts');
   writeFileSync(known, 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n');
-  const safeEnv = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'TMPDIR', 'LANG'].filter(name => env[name]).map(name => [name, env[name]]));
-  const fetchEnv = { ...safeEnv, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_SSH_COMMAND: `ssh -i "${keyFile}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${known}" -o HostKeyAlgorithms=ssh-ed25519 -o IdentityAgent=none` };
+  const safeEnv = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'TMPDIR', 'LANG', 'SystemRoot', 'SYSTEMROOT', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'TEMP', 'TMP', 'COMSPEC', 'PATHEXT'].filter(name => env[name]).map(name => [name, env[name]]));
+  const fetchEnv = { ...safeEnv, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_SSH_COMMAND: `ssh -i "${keyFile.replaceAll('\\', '/')}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${known.replaceAll('\\', '/')}" -o HostKeyAlgorithms=ssh-ed25519 -o IdentityAgent=none` };
   execute('git', ['init', '-q', source], { env: fetchEnv });
   execute('git', ['-C', source, 'fetch', '--quiet', '--no-tags', '--depth=1', `git@github.com:${env.SOURCE_REPOSITORY}.git`, env.SOURCE_SHA], { env: fetchEnv });
   execute('git', ['-C', source, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { env: fetchEnv });
@@ -37,7 +37,7 @@ try {
   rmSync(keyFile, { force: true }); keyFile = undefined;
   rmSync(known, { force: true });
   console.log('Private checkout: PASS');
-  execute(process.execPath, ['ci/macos-private.mjs'], { cwd: source, env: { ...safeEnv, PRIVATE_DIAGNOSTICS_DIR: diagnostics } });
+  execute(process.execPath, [`ci/${process.platform === 'darwin' ? 'macos' : 'windows'}-private.mjs`], { cwd: source, env: { ...safeEnv, PRIVATE_DIAGNOSTICS_DIR: diagnostics } });
   passed = true;
 } catch {
   console.log('Private verification: FAIL (details encrypted)');

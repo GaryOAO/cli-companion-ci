@@ -1,4 +1,4 @@
-name: Private macOS verification
+name: Private native verification
 on:
   workflow_dispatch:
     inputs:
@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: private-macos
+  group: private-native
   cancel-in-progress: false
 jobs:
   verify:
@@ -23,6 +23,8 @@ jobs:
             target: darwin-arm64
           - os: macos-15-intel
             target: darwin-x64
+          - os: windows-2025
+            target: win32-x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
