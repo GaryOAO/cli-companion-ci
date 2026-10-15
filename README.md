@@ -15,3 +15,7 @@ The public log contains fixed stage outcomes. Private process output and JSON/lo
 Required repository secrets: `SOURCE_REPOSITORY` and `SOURCE_DEPLOY_KEY`. The private source must provide `ci/macos-private.mjs`, with diagnostic JSON/log files in `PRIVATE_DIAGNOSTICS_DIR`. Remove the deploy key from the private repository and delete both public repository secrets after an ad hoc test session. Subsequent sessions need a new key.
 
 Public metadata includes runner architecture, timing, pass/fail, and the requested commit SHA. The runner and trusted workflow maintainers can access fetched source while the job executes. This design reduces accidental public disclosure; it is not a guarantee against a compromised runner, malicious workflow edits, or credential theft.
+
+## Verified run
+
+The [2026-10-15 native verification](https://github.com/GaryOAO/cli-companion-ci/actions/runs/38675576332) passed on both macOS ARM64 and Intel. Detailed reports remain private. After diagnosis, the session deploy key was revoked and both source secrets were removed, with API verification. A future private run requires a newly provisioned read-only key.
