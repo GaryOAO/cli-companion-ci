@@ -1,0 +1,54 @@
+# Standalone template for an empty public test repository.
+# No project checkout/download, credentials, cache or artifact upload.
+name: Generic platform smoke
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  platform:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Check Node filesystem and local IPC primitives
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { mkdtemp, writeFile, readFile, rename, rm } from 'node:fs/promises';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          import { createServer, createConnection } from 'node:net';
+          import { randomUUID } from 'node:crypto';
+          import { once } from 'node:events';
+          assert(Number(process.versions.node.split('.')[0]) >= 22);
+          const root = await mkdtemp(join(tmpdir(), 'platform-smoke-'));
+          let server, socket;
+          const deadline = setTimeout(() => process.exit(1), 15000);
+          try {
+            const a = join(root, 'space Unicode-中文.json');
+            const b = join(root, 'active.json');
+            await writeFile(a, 'roundtrip', { flag: 'wx', mode: 0o600 });
+            await rename(a, b);
+            assert.equal(await readFile(b, 'utf8'), 'roundtrip');
+            const endpoint = process.platform === 'win32'
+              ? '\\\\.\\pipe\\platform-smoke-' + randomUUID() : join(root, 'socket');
+            server = createServer(client => client.end('hello'));
+            server.listen(endpoint); await once(server, 'listening');
+            socket = createConnection(endpoint); socket.setEncoding('utf8');
+            let value = ''; socket.on('data', chunk => value += chunk);
+            await once(socket, 'end'); assert.equal(value, 'hello');
+            console.log(JSON.stringify({platform:process.platform,arch:process.arch,nodeMajor:process.versions.node.split('.')[0],filesystem:true,localIpc:true,projectIntegrationTested:false}));
+          } finally {
+            clearTimeout(deadline); socket?.destroy();
+            if (server?.listening) await new Promise(resolve => server.close(resolve));
+            await rm(root, { recursive:true, force:true });
+          }
+          JS
