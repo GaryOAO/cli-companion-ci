@@ -1,0 +1,28 @@
+name: macOS runner availability
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  smoke:
+    if: github.repository == 'GaryOAO/cli-companion-ci' && github.ref == 'refs/heads/main' && github.actor == 'GaryOAO' && github.triggering_actor == 'GaryOAO'
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Verify native runner
+        shell: bash
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          node -e 'if (process.platform !== "darwin" || process.arch !== process.env.EXPECTED_ARCH) process.exit(1); console.log("Native macOS runner: PASS")'
+          python3 -c 'import sys; assert sys.version_info >= (3, 9)'
+          command -v clang >/dev/null
+          command -v sandbox-exec >/dev/null
+          echo 'Required native tools: PASS'
