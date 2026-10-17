@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { seal } from './envelope.mjs';
+const EXPECTED_SOURCE_REPOSITORY = 'GaryOAO/cli-companion';
 function main() {
 const env = { ...process.env };
 delete process.env.SOURCE_DEPLOY_KEY;
@@ -16,7 +17,7 @@ function execute(command, args, options = {}) {
   return child.stdout.trim();
 }
 try {
-  if (!['darwin', 'win32'].includes(process.platform) || `${process.platform}-${process.arch}` !== env.EXPECTED_TARGET || !/^[a-f0-9]{40}$/.test(env.SOURCE_SHA ?? '') || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.SOURCE_REPOSITORY ?? '')) throw new Error();
+  if (!['darwin', 'win32'].includes(process.platform) || `${process.platform}-${process.arch}` !== env.EXPECTED_TARGET || !/^[a-f0-9]{40}$/.test(env.SOURCE_SHA ?? '') || env.SOURCE_REPOSITORY !== EXPECTED_SOURCE_REPOSITORY) throw new Error();
   if (!env.SOURCE_DEPLOY_KEY || !env.RUNNER_TEMP || !path.isAbsolute(env.RUNNER_TEMP)) throw new Error();
   root = mkdtempSync(path.join(env.RUNNER_TEMP, 'private-ci-'));
   chmodSync(root, 0o700);
