@@ -35,9 +35,15 @@ try {
   // Fetch commit/tree metadata without downloading blobs that are excluded by
   // sparse-checkout. The public runner must never materialize tracked private
   // keys from the source repository.
-  execute('git', ['-C', source, 'fetch', '--quiet', '--no-tags', '--filter=blob:none', '--depth=1', `git@github.com:${env.SOURCE_REPOSITORY}.git`, env.SOURCE_SHA], { env: fetchEnv });
+  const sourceRemote = `git@github.com:${env.SOURCE_REPOSITORY}.git`;
+  execute('git', ['-C', source, 'remote', 'add', 'origin', sourceRemote], { env: fetchEnv });
+  execute('git', ['-C', source, 'fetch', '--quiet', '--no-tags', '--filter=blob:none', '--depth=1', 'origin', env.SOURCE_SHA], { env: fetchEnv });
+  if (execute('git', ['-C', source, 'config', '--get', 'remote.origin.promisor'], { env: safeEnv }) !== 'true' ||
+      execute('git', ['-C', source, 'config', '--get', 'remote.origin.partialclonefilter'], { env: safeEnv }) !== 'blob:none') throw new Error();
   execute('git', ['-C', source, 'sparse-checkout', 'init', '--no-cone'], { env: fetchEnv });
   execute('git', ['-C', source, 'sparse-checkout', 'set', '--no-cone', '/*', '!/ci/secrets/', '!/ci/secrets/**'], { env: fetchEnv });
+  const objectNames = execute('git', ['-C', source, 'rev-list', '--objects', '--all'], { env: safeEnv });
+  if (/\\bci\\/secrets(?:\\/|$)/.test(objectNames)) throw new Error();
   execute('git', ['-C', source, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { env: fetchEnv });
   if (execute('git', ['-C', source, 'rev-parse', 'HEAD'], { env: safeEnv }) !== env.SOURCE_SHA) throw new Error();
   if (existsSync(path.join(source, 'ci', 'secrets')) ||
