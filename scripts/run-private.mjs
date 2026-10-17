@@ -43,7 +43,7 @@ try {
   execute('git', ['-C', source, 'sparse-checkout', 'init', '--no-cone'], { env: fetchEnv });
   execute('git', ['-C', source, 'sparse-checkout', 'set', '--no-cone', '/*', '!/ci/secrets/', '!/ci/secrets/**'], { env: fetchEnv });
   const objectNames = execute('git', ['-C', source, 'rev-list', '--objects', '--all'], { env: safeEnv });
-  if (/\\bci\\/secrets(?:\\/|$)/.test(objectNames)) throw new Error();
+  if (/\bci\/secrets(?:\/|$)/.test(objectNames)) throw new Error();
   execute('git', ['-C', source, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { env: fetchEnv });
   if (execute('git', ['-C', source, 'rev-parse', 'HEAD'], { env: safeEnv }) !== env.SOURCE_SHA) throw new Error();
   if (existsSync(path.join(source, 'ci', 'secrets')) ||
