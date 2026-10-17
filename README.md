@@ -12,7 +12,7 @@ The manually dispatched workflow accepts an exact private commit SHA. It uses a 
 
 The public log contains fixed stage outcomes. Private process output and JSON/log diagnostics are encrypted with AES-256-GCM and an RSA-OAEP-SHA256 wrapped random key before upload. Only `sealed-diagnostics/diagnostics.enc` is uploaded, retained for one day. No source, npm packages, caches, plaintext logs, or plaintext reports are uploaded. The decryption key is held outside GitHub and never sent to a runner. Decrypt locally with `node scripts/decrypt.mjs PRIVATE_KEY diagnostics.enc OUTPUT.json`.
 
-Required repository secret: `SOURCE_DEPLOY_KEY`. The private source must provide `ci/macos-private.mjs` or `ci/windows-private.mjs` for its platform, with diagnostic JSON/log files in `PRIVATE_DIAGNOSTICS_DIR`. Remove the deploy key from the private repository and delete both public repository secrets after an ad hoc test session. Subsequent sessions need a new key.
+Required repository secret: `SOURCE_DEPLOY_KEY`. The private source must provide `ci/macos-private.mjs` or `ci/windows-private.mjs` for its platform, with diagnostic JSON/log files in `PRIVATE_DIAGNOSTICS_DIR`. Remove the deploy key from the private repository and delete the public `SOURCE_DEPLOY_KEY` secret after an ad hoc test session. Subsequent sessions need a new key.
 
 Public metadata includes runner architecture, timing, pass/fail, and the requested commit SHA. The runner and trusted workflow maintainers can access fetched source while the job executes. This design reduces accidental public disclosure; it is not a guarantee against a compromised runner, malicious workflow edits, or credential theft.
 
