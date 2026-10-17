@@ -38,7 +38,7 @@ jobs:
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
           SOURCE_SHA: ${{ inputs.source_sha }}
-          SOURCE_REPOSITORY: ${{ secrets.SOURCE_REPOSITORY }}
+          SOURCE_REPOSITORY: GaryOAO/cli-companion
           SOURCE_DEPLOY_KEY: ${{ secrets.SOURCE_DEPLOY_KEY }}
         run: node scripts/run-private.mjs
       - name: Upload encrypted diagnostics only
