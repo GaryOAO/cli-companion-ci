@@ -32,9 +32,20 @@ try {
   const safeEnv = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'TMPDIR', 'LANG', 'SystemRoot', 'SYSTEMROOT', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'TEMP', 'TMP', 'COMSPEC', 'PATHEXT'].filter(name => env[name]).map(name => [name, env[name]]));
   const fetchEnv = { ...safeEnv, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_SSH_COMMAND: `ssh -i "${keyFile.replaceAll('\\', '/')}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${known.replaceAll('\\', '/')}" -o HostKeyAlgorithms=ssh-ed25519 -o IdentityAgent=none` };
   execute('git', ['init', '-q', source], { env: fetchEnv });
-  execute('git', ['-C', source, 'fetch', '--quiet', '--no-tags', '--depth=1', `git@github.com:${env.SOURCE_REPOSITORY}.git`, env.SOURCE_SHA], { env: fetchEnv });
+  // Fetch commit/tree metadata without downloading blobs that are excluded by
+  // sparse-checkout. The public runner must never materialize tracked private
+  // keys from the source repository.
+  execute('git', ['-C', source, 'fetch', '--quiet', '--no-tags', '--filter=blob:none', '--depth=1', `git@github.com:${env.SOURCE_REPOSITORY}.git`, env.SOURCE_SHA], { env: fetchEnv });
+  execute('git', ['-C', source, 'sparse-checkout', 'init', '--no-cone'], { env: fetchEnv });
+  execute('git', ['-C', source, 'sparse-checkout', 'set', '--no-cone', '/*', '!/ci/secrets/', '!/ci/secrets/**'], { env: fetchEnv });
   execute('git', ['-C', source, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { env: fetchEnv });
   if (execute('git', ['-C', source, 'rev-parse', 'HEAD'], { env: safeEnv }) !== env.SOURCE_SHA) throw new Error();
+  if (existsSync(path.join(source, 'ci', 'secrets')) ||
+      existsSync(path.join(source, 'ci', 'secrets', 'source-deploy-key')) ||
+      existsSync(path.join(source, 'ci', 'secrets', 'diagnostics-private.pem'))) throw new Error();
+  // The private entrypoints do not need Git metadata. Removing it prevents
+  // source code from recovering excluded blobs with git cat-file.
+  rmSync(path.join(source, '.git'), { recursive: true, force: true });
   rmSync(keyFile, { force: true }); keyFile = undefined;
   rmSync(known, { force: true });
   console.log('Private checkout: PASS');
