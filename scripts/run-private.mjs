@@ -42,8 +42,14 @@ try {
       execute('git', ['-C', source, 'config', '--get', 'remote.origin.partialclonefilter'], { env: safeEnv }) !== 'blob:none') throw new Error();
   execute('git', ['-C', source, 'sparse-checkout', 'init', '--no-cone'], { env: fetchEnv });
   execute('git', ['-C', source, 'sparse-checkout', 'set', '--no-cone', '/*', '!/ci/secrets/', '!/ci/secrets/**'], { env: fetchEnv });
-  const objectNames = execute('git', ['-C', source, 'rev-list', '--objects', 'FETCH_HEAD'], { env: safeEnv });
-  if (/\bci\/secrets(?:\/|$)/.test(objectNames)) throw new Error();
+  // Read the tree for excluded paths, then compare their blob IDs with the
+  // local object database without invoking a promisor fetch. If any excluded
+  // private blob is present locally, abort before checkout and execution.
+  const secretTree = execute('git', ['-C', source, 'ls-tree', '-r', '--full-tree', 'FETCH_HEAD', '--', 'ci/secrets'], { env: safeEnv });
+  const secretObjects = secretTree.split('\\n').map(line => line.trim().split(/\\s+/)[2]).filter(value => /^[a-f0-9]{40}$/.test(value));
+  const localObjects = new Set(execute('git', ['-C', source, 'cat-file', '--batch-all-objects', '--batch-check'], { env: safeEnv })
+    .split('\\n').map(line => line.split(' ')[0]).filter(value => /^[a-f0-9]{40}$/.test(value)));
+  if (secretObjects.some(value => localObjects.has(value))) throw new Error();
   execute('git', ['-C', source, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { env: fetchEnv });
   if (execute('git', ['-C', source, 'rev-parse', 'HEAD'], { env: safeEnv }) !== env.SOURCE_SHA) throw new Error();
   if (existsSync(path.join(source, 'ci', 'secrets')) ||
