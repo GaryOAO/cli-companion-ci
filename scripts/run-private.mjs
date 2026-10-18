@@ -83,6 +83,22 @@ try {
     mkdirSync(output, { recursive: true, mode: 0o700 });
     writeFileSync(path.join(output, 'diagnostics.enc'), blob, { mode: 0o600 });
     console.log('Encrypted diagnostics: READY');
+    // A green native run has already extracted, installed and launched the
+    // preview archive. Seal that exact archive with the same public key; the
+    // public runner never writes plaintext source or binaries.
+    if (passed) {
+      try {
+        const name = `cli-companion-preview-${env.EXPECTED_TARGET}.zip`;
+        const archive = path.join(diagnostics, 'packages', name);
+        if (!existsSync(archive)) throw new Error();
+        const stat = lstatSync(archive);
+        if (stat.isSymbolicLink() || !stat.isFile() || stat.size < 1 || stat.size > 128 * 1024 * 1024) throw new Error();
+        const clientOutput = path.join(env.RUNNER_TEMP, 'sealed-client');
+        mkdirSync(clientOutput, { recursive: true, mode: 0o700 });
+        writeFileSync(path.join(clientOutput, name + '.enc'), seal(readFileSync(archive), publicKey), { mode: 0o600 });
+        console.log('Encrypted client package: READY');
+      } catch { passed = false; console.log('Encrypted client package: FAIL'); }
+    }
   } catch { passed = false; console.log('Encrypted diagnostics: FAIL'); }
   if (root) rmSync(root, { recursive: true, force: true });
 }

@@ -41,7 +41,7 @@ jobs:
           SOURCE_REPOSITORY: GaryOAO/cli-companion
           SOURCE_DEPLOY_KEY: ${{ secrets.SOURCE_DEPLOY_KEY }}
         run: node scripts/run-private.mjs
-      - name: Upload encrypted diagnostics only
+      - name: Upload encrypted diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -49,3 +49,11 @@ jobs:
           path: ${{ runner.temp }}/sealed-diagnostics/diagnostics.enc
           if-no-files-found: error
           retention-days: 1
+      - name: Upload encrypted client package
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sealed-client-${{ matrix.target }}
+          path: ${{ runner.temp }}/sealed-client/*.enc
+          if-no-files-found: error
+          retention-days: 7
