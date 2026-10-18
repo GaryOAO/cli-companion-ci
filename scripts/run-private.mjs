@@ -92,7 +92,7 @@ try {
         const archive = path.join(diagnostics, 'packages', name);
         if (!existsSync(archive)) throw new Error();
         const stat = lstatSync(archive);
-        if (stat.isSymbolicLink() || !stat.isFile() || stat.size < 1 || stat.size > 128 * 1024 * 1024) throw new Error();
+        if (stat.isSymbolicLink() || !stat.isFile() || stat.size < 1 || stat.size > 512 * 1024 * 1024) throw new Error();
         const clientOutput = path.join(env.RUNNER_TEMP, 'sealed-client');
         mkdirSync(clientOutput, { recursive: true, mode: 0o700 });
         writeFileSync(path.join(clientOutput, name + '.enc'), seal(readFileSync(archive), publicKey), { mode: 0o600 });
