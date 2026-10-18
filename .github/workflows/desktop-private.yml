@@ -38,7 +38,7 @@ jobs:
           toolchain: stable
       - name: Linux desktop build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf libfuse2t64
+        run: sudo apt-get update -qq && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libdbus-1-dev librsvg2-dev libayatana-appindicator3-dev patchelf libfuse2t64
       - name: Isolated private desktop build (no plaintext output)
         shell: bash
         env:
