@@ -1,0 +1,63 @@
+name: Private desktop installers
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact private source commit (40 lowercase hexadecimal characters)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: private-desktop
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'GaryOAO/cli-companion-ci' && github.ref == 'refs/heads/main' && github.actor == 'GaryOAO' && github.triggering_actor == 'GaryOAO'
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: darwin-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+          - os: windows-2025
+            target: win32-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - name: Isolated private desktop build (no plaintext output)
+        shell: bash
+        env:
+          PRIVATE_JOB: desktop
+          EXPECTED_TARGET: ${{ matrix.target }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_REPOSITORY: GaryOAO/cli-companion
+          SOURCE_DEPLOY_KEY: ${{ secrets.SOURCE_DEPLOY_KEY }}
+        run: node scripts/run-private.mjs
+      - name: Upload encrypted diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sealed-desktop-diagnostics-${{ matrix.target }}
+          path: ${{ runner.temp }}/sealed-diagnostics/diagnostics.enc
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload encrypted installers
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sealed-desktop-${{ matrix.target }}
+          path: ${{ runner.temp }}/sealed-client/*.enc
+          if-no-files-found: error
+          retention-days: 7

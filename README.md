@@ -14,6 +14,8 @@ The public log contains fixed stage outcomes. Private process output and JSON/lo
 
 Required repository secret: `SOURCE_DEPLOY_KEY`. The private source must provide `ci/macos-private.mjs` or `ci/windows-private.mjs` for its platform, with diagnostic JSON/log files in `PRIVATE_DIAGNOSTICS_DIR`. Rotate the read-only deploy key when required; do not treat every run as a session key. The public runner must never execute a full checkout containing tracked private key files.
 
+`desktop-private.yml` uses the same export and encryption boundary for desktop installers. Its fixed private entrypoint is `ci/desktop-tauri.mjs`; it uploads encrypted diagnostics and an encrypted `cli-companion-desktop-<target>.zip` for each platform. No updater signing key is passed to the public runner. Release signing and publication happen locally after decryption. This job is owner-dispatched on main with an exact source SHA, separately from the native regression workflow.
+
 Public metadata includes runner architecture, timing, pass/fail, and the requested commit SHA. The runner and trusted workflow maintainers can access fetched source while the job executes. This design reduces accidental public disclosure; it is not a guarantee against a compromised runner, malicious workflow edits, or credential theft.
 
 ## Verified run

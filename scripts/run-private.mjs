@@ -6,6 +6,7 @@ import { seal } from './envelope.mjs';
 const EXPECTED_SOURCE_REPOSITORY = 'GaryOAO/cli-companion';
 function main() {
 const env = { ...process.env };
+const desktop = env.PRIVATE_JOB === 'desktop';
 delete process.env.SOURCE_DEPLOY_KEY;
 let root, source, keyFile, diagnostics;
 const logs = [];
@@ -18,6 +19,7 @@ function execute(command, args, options = {}) {
 }
 try {
   if (!['darwin', 'win32'].includes(process.platform) || `${process.platform}-${process.arch}` !== env.EXPECTED_TARGET || !/^[a-f0-9]{40}$/.test(env.SOURCE_SHA ?? '') || env.SOURCE_REPOSITORY !== EXPECTED_SOURCE_REPOSITORY) throw new Error();
+  if (env.PRIVATE_JOB !== undefined && !['native', 'desktop'].includes(env.PRIVATE_JOB)) throw new Error();
   if (!env.SOURCE_DEPLOY_KEY || !env.RUNNER_TEMP || !path.isAbsolute(env.RUNNER_TEMP)) throw new Error();
   root = mkdtempSync(path.join(env.RUNNER_TEMP, 'private-ci-'));
   chmodSync(root, 0o700);
@@ -61,7 +63,8 @@ try {
   rmSync(keyFile, { force: true }); keyFile = undefined;
   rmSync(known, { force: true });
   console.log('Private checkout: PASS');
-  execute(process.execPath, [`ci/${process.platform === 'darwin' ? 'macos' : 'windows'}-private.mjs`], { cwd: source, env: { ...safeEnv, PRIVATE_DIAGNOSTICS_DIR: diagnostics } });
+  const entrypoint = desktop ? 'ci/desktop-tauri.mjs' : `ci/${process.platform === 'darwin' ? 'macos' : 'windows'}-private.mjs`;
+  execute(process.execPath, [entrypoint], { cwd: source, env: { ...safeEnv, PRIVATE_DIAGNOSTICS_DIR: diagnostics }, timeout: desktop ? 2700000 : 900000 });
   passed = true;
 } catch {
   console.log('Private verification: FAIL (details encrypted)');
@@ -88,7 +91,7 @@ try {
     // public runner never writes plaintext source or binaries.
     if (passed) {
       try {
-        const name = `cli-companion-preview-${env.EXPECTED_TARGET}.zip`;
+        const name = `cli-companion-${desktop ? 'desktop' : 'preview'}-${env.EXPECTED_TARGET}.zip`;
         const archive = path.join(diagnostics, 'packages', name);
         if (!existsSync(archive)) throw new Error();
         const stat = lstatSync(archive);
